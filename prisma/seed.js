@@ -19,10 +19,10 @@ const departments = [
 ];
 
 const managerData = [
-  { name: "Rahul Sharma", email: "rahul.manager@company.com" },
-  { name: "Priya Verma", email: "priya.manager@company.com" },
-  { name: "Amit Singh", email: "amit.manager@company.com" },
-  { name: "Neha Kapoor", email: "neha.manager@company.com" },
+  { employeeId: "EMP0001", name: "Rahul Sharma", email: "rahul.manager@company.com" },
+  { employeeId: "EMP0007", name: "Priya Verma", email: "priya.manager@company.com" },
+  { employeeId: "EMP0013", name: "Amit Singh", email: "amit.manager@company.com" },
+  { employeeId: "EMP0019", name: "Neha Kapoor", email: "neha.manager@company.com" },
 ];
 
 const employeeNames = [

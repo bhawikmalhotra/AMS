@@ -16,17 +16,19 @@ model Department {
 }
 
 model User {
-  id           String       @id @default(uuid())
+  id           String           @id @default(uuid())
+  employeeId   String            @unique
   name         String
-  email        String       @unique
+  email        String           @unique
   password     String
-  role         UserRole     @default(EMPLOYEE)
+  role         UserRole         @default(EMPLOYEE)
   departmentId String
-  isActive     Boolean      @default(true)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  attendance   Attendance[]
-  department   Department   @relation(fields: [departmentId], references: [id])
+  isActive     Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  department Department   @relation(fields: [departmentId], references: [id])
+  attendance Attendance[]
 }
 
 model Attendance {

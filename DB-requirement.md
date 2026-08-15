@@ -1,236 +1,166 @@
-# Employee Attendance Management System
-# Final Database Requirements Specification
+# Database Requirements — Employee Attendance Management System
 
-**Document:** `DB-requirement.md`  
-**Version:** 1.0  
-**Status:** Final Database Requirements  
-**Related Document:** `SRS.md`  
+**Version:** 1.1  
+**Status:** Final / Updated  
 **Database:** PostgreSQL 18  
-**ORM:** Prisma  
-**ER Tool:** dbdiagram.io
+**ORM:** Prisma 7
 
 ---
 
-# 1. Purpose
+## 1. Database Objective
 
-This document defines the final relational database requirements for the Employee Attendance Management System.
+The database stores departments, users/employees, and employee attendance records.
 
-The design is intentionally **beginner-friendly but realistic enough for internship-level PostgreSQL and Prisma practice**.
-
-The database must support:
-
-- User authentication data
-- Employee information
-- Employee roles
-- Departments
-- Department-based manager access
-- Daily attendance
-- Check-in/check-out
-- Attendance status
-- Attendance history
-- Attendance analytics
-- Sample data for testing
-- Prisma relations and queries
-- PostgreSQL joins, filtering, grouping, aggregation, constraints, and indexes
-
-The database should avoid unnecessary enterprise-level complexity.
+The design should remain simple enough for a beginner project while supporting realistic relational queries, Prisma relations, filtering, aggregation, authorization, and dashboard visualization.
 
 ---
 
-# 2. Design Philosophy
-
-The database follows these principles:
-
-1. Keep the number of tables small.
-2. Avoid duplicated data.
-3. Use relational modeling instead of storing repeated information.
-4. Use primary keys and foreign keys correctly.
-5. Enforce important business rules with database constraints.
-6. Calculate statistics from source data instead of storing duplicate calculated values.
-7. Keep authorization-related relationships clear.
-8. Make the schema easy to understand in Prisma.
-9. Provide enough relationships for meaningful SQL/Prisma query practice.
-10. Preserve historical attendance data.
-
----
-
-# 3. Core Entities
-
-The final database contains three core entities:
+## 2. Entity Relationship
 
 ```text
-Department
-    |
-    | 1
-    | N
-    v
-User
-    |
-    | 1
-    | N
-    v
-Attendance
+Department 1 ─────< User 1 ─────< Attendance
 ```
 
-Entities:
+### Relationships
 
-1. `Department`
-2. `User`
-3. `Attendance`
-
-A separate `Manager` table is intentionally NOT required.
-
-A manager is represented by:
-
-```text
-User.role = MANAGER
-```
+- One Department has many Users.
+- One User belongs to exactly one Department.
+- One User can have many Attendance records.
+- One Attendance record belongs to exactly one User.
+- Managers are Users whose `role` is `MANAGER`; there is no separate Manager table.
 
 ---
 
-# 4. Entity: Department
+## 3. Department
 
-## Purpose
+### Purpose
 
-Represents an organizational department.
+Stores the departments to which employees belong.
+
+### Attributes
+
+| Column | Type | Constraints | Purpose |
+|---|---|---|---|
+| id | UUID | PK, auto-generated | Internal identifier |
+| name | VARCHAR | NOT NULL, UNIQUE | Department name |
+| createdAt | TIMESTAMP | NOT NULL, default now | Creation timestamp |
+| updatedAt | TIMESTAMP | NOT NULL, auto-updated | Last modification timestamp |
+
+### Rules
+
+- Department names must be unique.
+- A department can contain multiple users.
+- A department should not be deleted casually if users depend on it.
+
+---
+
+## 4. User
+
+### Purpose
+
+Stores employee accounts and role/department information.
+
+There is no separate Employee table.
+
+### Attributes
+
+| Column | Type | Constraints | Purpose |
+|---|---|---|---|
+| id | UUID | PK, auto-generated | Internal database identity |
+| employeeId | VARCHAR(8) | NOT NULL, UNIQUE | Human-friendly employee identifier |
+| name | VARCHAR | NOT NULL | Employee full name |
+| email | VARCHAR | NOT NULL, UNIQUE | Login/contact identifier |
+| password | VARCHAR | NOT NULL | Hashed password |
+| role | ENUM | NOT NULL, default EMPLOYEE | Access level |
+| departmentId | UUID | NOT NULL, FK | Employee's department |
+| isActive | BOOLEAN | NOT NULL, default true | Account status |
+| createdAt | TIMESTAMP | NOT NULL, default now | Creation timestamp |
+| updatedAt | TIMESTAMP | NOT NULL, auto-updated | Last modification timestamp |
+
+### Employee ID
+
+The system uses two identifiers:
+
+```text
+id
+→ UUID
+→ Internal database identity and foreign-key target
+
+employeeId
+→ EMP0001
+→ Human/business identifier
+```
 
 Examples:
 
-- IT
-- HR
-- Finance
-- Marketing
-- Sales
+```text
+EMP0001
+EMP0002
+EMP0003
+...
+```
 
-## Columns
+`employeeId` must be unique.
 
-| Column | Type | Required | Constraints |
-|---|---|---:|---|
-| id | UUID | Yes | Primary Key |
-| name | VARCHAR(100) | Yes | UNIQUE, NOT NULL |
-| createdAt | TIMESTAMP | Yes | NOT NULL, default current time |
-| updatedAt | TIMESTAMP | Yes | NOT NULL, default current time |
-
-## Rules
-
-- Department ID is unique.
-- Department name is unique.
-- Department name cannot be NULL.
-- One department can have many users.
-- A department may temporarily have zero users.
+It should not replace the UUID primary key.
 
 ---
 
-# 5. Entity: User
-
-## Purpose
-
-Represents every application user and employee.
-
-Managers and normal employees are stored in the same table.
-
-## Columns
-
-| Column | Type | Required | Constraints |
-|---|---|---:|---|
-| id | UUID | Yes | Primary Key |
-| name | VARCHAR(100) | Yes | NOT NULL |
-| email | VARCHAR(255) | Yes | UNIQUE, NOT NULL |
-| password | VARCHAR(255) | Yes | NOT NULL |
-| role | ENUM | Yes | EMPLOYEE / MANAGER |
-| departmentId | UUID | Yes | FK → Department.id |
-| isActive | BOOLEAN | Yes | Default true |
-| createdAt | TIMESTAMP | Yes | Default current time |
-| updatedAt | TIMESTAMP | Yes | Default current time |
-
----
-
-# 6. User Constraints
-
-## 6.1 Email
-
-Email must be:
-
-- Required.
-- Unique.
-- Used as the login identifier.
-- Stored consistently, preferably lowercase.
-
-The application should validate email format.
-
----
-
-## 6.2 Password
-
-The database stores a password hash only.
-
-Plain-text passwords must never be stored.
-
-The authentication system is responsible for hashing and verifying passwords.
-
----
-
-## 6.3 Role
-
-Allowed values:
+## 5. User Roles
 
 ```text
 EMPLOYEE
 MANAGER
 ```
 
-Role should be represented as a PostgreSQL/Prisma enum.
+### EMPLOYEE
 
----
+Can access:
 
-## 6.4 Department
+- Own profile
+- Own employee ID
+- Own attendance
+- Check-in/check-out
 
-Every user belongs to exactly one department.
+### MANAGER
+
+Can access:
+
+- Own profile/attendance
+- Employees belonging to the manager's department
+- Attendance belonging to those employees
+- Department statistics and visualization data
+
+A manager's department is determined by:
 
 ```text
-User.departmentId → Department.id
+User.departmentId
 ```
 
----
-
-## 6.5 Account Status
-
-`isActive` determines whether the user account is active.
-
-An inactive user:
-
-- Should not be allowed to log in.
-- Retains their historical attendance.
-- Remains associated with their department.
-
-This is preferable to deleting historical employee data.
+Therefore, department-based authorization can be implemented without adding a `managerId` column.
 
 ---
 
-# 7. Entity: Attendance
+## 6. Attendance
 
-## Purpose
+### Purpose
 
-Stores an employee's attendance for a specific date.
+Stores daily employee attendance.
 
-## Columns
+### Attributes
 
-| Column | Type | Required | Constraints |
-|---|---|---:|---|
-| id | UUID | Yes | Primary Key |
-| employeeId | UUID | Yes | FK → User.id |
-| date | DATE | Yes | NOT NULL |
-| checkIn | TIMESTAMP | Yes | NOT NULL |
-| checkOut | TIMESTAMP | No | NULL allowed |
-| status | ENUM | Yes | PRESENT / LATE / ABSENT |
-| createdAt | TIMESTAMP | Yes | Default current time |
-| updatedAt | TIMESTAMP | Yes | Default current time |
+| Column | Type | Constraints | Purpose |
+|---|---|---|---|
+| id | UUID | PK, auto-generated | Attendance identifier |
+| employeeId | UUID | NOT NULL, FK | References User.id |
+| date | DATE | NOT NULL | Attendance calendar date |
+| checkIn | TIMESTAMP | NOT NULL | Check-in time |
+| checkOut | TIMESTAMP | NULL | Check-out time |
+| status | ENUM | NOT NULL | Attendance status |
+| createdAt | TIMESTAMP | NOT NULL, default now | Creation timestamp |
+| updatedAt | TIMESTAMP | NOT NULL, auto-updated | Last modification timestamp |
 
----
-
-# 8. Attendance Status
-
-Allowed values:
+### Attendance Status
 
 ```text
 PRESENT
@@ -238,84 +168,27 @@ LATE
 ABSENT
 ```
 
-The employee does not freely choose the status.
-
-The application determines it from the attendance workflow.
-
-For example:
+### Important Constraint
 
 ```text
-Check in before configured threshold
-        ↓
-PRESENT
-
-Check in after configured threshold
-        ↓
-LATE
+(employeeId, date) UNIQUE
 ```
 
-Absence can be derived from missing attendance on a working day, or represented by an explicit attendance record if the application later requires that behavior.
+This prevents an employee from having two attendance records for the same day.
 
----
-
-# 9. Critical Attendance Constraint
-
-An employee can have **only one attendance record per date**.
-
-Required database constraint:
+Example:
 
 ```text
-UNIQUE(employeeId, date)
+EMP0001 + 2026-08-15 → allowed
+EMP0001 + 2026-08-15 → duplicate, rejected
+EMP0001 + 2026-08-16 → allowed
 ```
 
-This prevents:
-
-```text
-Employee A | 2026-08-13
-Employee A | 2026-08-13
-```
-
-from existing twice.
-
-This constraint is important because application-level checks alone are not sufficient to guarantee uniqueness under concurrent requests.
-
 ---
 
-# 10. Check-In Rules
+## 7. Foreign Keys
 
-When an employee checks in:
-
-1. Identify the employee from the authenticated session.
-2. Determine today's date.
-3. Check whether today's attendance already exists.
-4. Reject the operation if it exists.
-5. Create the attendance record.
-6. Store the current timestamp.
-7. Determine the status.
-
-The employee must not manually provide another employee's ID.
-
----
-
-# 11. Check-Out Rules
-
-When an employee checks out:
-
-1. Identify the authenticated employee.
-2. Find today's attendance record.
-3. Reject if no attendance record exists.
-4. Reject if `checkOut` is already populated.
-5. Store the current timestamp.
-
-`checkOut` is nullable because an employee may have checked in but not checked out yet.
-
----
-
-# 12. Important Data Integrity Rule
-
-The database should prevent invalid relationships.
-
-Required foreign keys:
+### User → Department
 
 ```text
 User.departmentId
@@ -323,484 +196,144 @@ User.departmentId
 Department.id
 ```
 
+Relationship:
+
+```text
+Department 1 : N User
+```
+
+### Attendance → User
+
 ```text
 Attendance.employeeId
         ↓
 User.id
 ```
 
-Therefore:
+Relationship:
 
-- A user cannot reference a non-existent department.
-- Attendance cannot reference a non-existent user.
+```text
+User 1 : N Attendance
+```
 
 ---
 
-# 13. Manager Department Access
+## 8. Indexes and Constraints
 
-There is no direct `managerId` field on Attendance and no separate Manager table.
+### Required unique constraints
 
-Manager access is derived from department membership.
+```text
+Department.name
+User.employeeId
+User.email
+Attendance(employeeId, date)
+```
+
+### Recommended indexes
+
+```text
+User.departmentId
+Attendance.date
+Attendance.employeeId
+```
+
+The composite unique constraint on:
+
+```text
+(employeeId, date)
+```
+
+also creates an index useful for common attendance lookups.
+
+---
+
+## 9. Data Integrity Rules
+
+1. Every User must belong to a Department.
+2. Every Attendance record must belong to a User.
+3. `employeeId` must be unique.
+4. Email must be unique.
+5. One employee can have only one attendance record per date.
+6. `checkOut` may be NULL while the employee is still checked in.
+7. Check-out should only be allowed when a check-in exists.
+8. Attendance timestamps should be generated by the server.
+9. Passwords must contain only hashes, never plain-text passwords.
+10. Deactivating a user is preferred over deleting a user with attendance history.
+
+---
+
+## 10. Manager Department Access
+
+A manager does not need a direct `managerId` field.
 
 Example:
 
 ```text
 Manager
-   |
-   | departmentId = 1
-   v
-IT Department
-   |
-   +── Employee A
-   +── Employee B
-   +── Employee C
+  User.departmentId = IT
+          ↓
+      Department
+          ↓
+      All IT Users
 ```
 
-A manager can access employees where:
-
-```text
-employee.departmentId = manager.departmentId
-```
-
-And attendance where:
-
-```text
-attendance.employeeId
-    belongs to
-employee.departmentId = manager.departmentId
-```
-
-This provides an excellent opportunity to practice:
-
-- Prisma nested relations
-- Prisma `where`
-- PostgreSQL JOIN
-- WHERE
-- GROUP BY
-- COUNT
-- AVG
-- date filtering
-
----
-
-# 14. Relationships
-
-## Department → User
-
-**One-to-Many**
-
-```text
-Department 1 ────────< User
-```
-
-One department can contain many users.
-
-Each user belongs to exactly one department.
-
----
-
-## User → Attendance
-
-**One-to-Many**
-
-```text
-User 1 ────────< Attendance
-```
-
-One user can have many attendance records.
-
-Each attendance record belongs to exactly one user.
-
----
-
-# 15. Primary Key Strategy
-
-Use generated UUIDs for all main entities:
-
-```text
-Department.id
-User.id
-Attendance.id
-```
-
-Reasons:
-
-- Avoid predictable sequential identifiers.
-- Good practice for real applications.
-- Works cleanly with Prisma.
-- Does not expose business meaning through IDs.
-
----
-
-# 16. Foreign Key Strategy
-
-Required relationships:
-
-```text
-Department.id
-      ↑
-      |
-User.departmentId
-```
-
-```text
-User.id
-   ↑
-   |
-Attendance.employeeId
-```
-
-Foreign keys must enforce referential integrity.
-
----
-
-# 17. Delete Strategy
-
-Historical attendance is important.
-
-Recommended behavior:
-
-### User
-
-Prefer deactivation:
-
-```text
-isActive = false
-```
-
-instead of deleting the user.
-
-Historical attendance remains available.
-
-### Department
-
-A department should not be deleted while active users belong to it.
-
-The application should either:
-
-- prevent deletion, or
-- require users to be moved first.
-
-For learning purposes, hard-delete operations can be omitted from the initial UI.
-
----
-
-# 18. Timestamp Strategy
-
-All main entities contain:
-
-```text
-createdAt
-updatedAt
-```
-
-Attendance additionally contains:
-
-```text
-date
-checkIn
-checkOut
-```
-
-Example:
-
-```text
-date:     2026-08-13
-checkIn:  2026-08-13 09:42:15
-checkOut: 2026-08-13 18:07:31
-```
-
-`date` represents the business attendance date.
-
-`checkIn` and `checkOut` represent exact timestamps.
-
----
-
-# 19. Database Constraints
-
-## Department
-
-```text
-PRIMARY KEY(id)
-NOT NULL(name)
-UNIQUE(name)
-NOT NULL(createdAt)
-NOT NULL(updatedAt)
-```
-
-## User
-
-```text
-PRIMARY KEY(id)
-NOT NULL(name)
-NOT NULL(email)
-UNIQUE(email)
-NOT NULL(password)
-NOT NULL(role)
-NOT NULL(departmentId)
-NOT NULL(isActive)
-NOT NULL(createdAt)
-NOT NULL(updatedAt)
-```
-
-## Attendance
-
-```text
-PRIMARY KEY(id)
-NOT NULL(employeeId)
-NOT NULL(date)
-NOT NULL(checkIn)
-NULLABLE(checkOut)
-NOT NULL(status)
-NOT NULL(createdAt)
-NOT NULL(updatedAt)
-
-UNIQUE(employeeId, date)
-```
-
----
-
-# 20. Additional PostgreSQL Integrity Checks
-
-Where practical, PostgreSQL should also protect obvious invalid states.
-
-Recommended checks:
-
-### Check-out cannot be earlier than check-in
+A manager can retrieve their department using their own `departmentId`, then restrict employee/attendance queries to that department.
 
 Conceptually:
 
-```text
-checkOut IS NULL OR checkOut >= checkIn
+```sql
+SELECT u.*
+FROM "User" u
+WHERE u."departmentId" = manager_department_id
+  AND u.role = 'EMPLOYEE';
 ```
 
-### Name should not be empty
-
-Application validation should reject blank names.
-
-### Email should not be empty
-
-Application validation should reject blank emails.
-
-Not every validation needs to be duplicated as a database CHECK constraint. Keep database constraints focused on data integrity.
+With Prisma, this relationship will later be expressed using relation filters/includes rather than manually writing every SQL JOIN.
 
 ---
 
-# 21. Index Strategy
+## 11. Dashboard Query Requirements
 
-Do not add indexes to every column.
+The database must support queries for:
 
-Use indexes based on actual query patterns.
+### Employee
 
-## Department
-
-```text
-PRIMARY KEY(id)
-UNIQUE(name)
-```
-
-## User
-
-```text
-UNIQUE(email)
-INDEX(departmentId)
-```
-
-The department index supports manager queries such as:
-
-```text
-Find all employees in my department.
-```
-
-## Attendance
-
-```text
-UNIQUE(employeeId, date)
-INDEX(date)
-```
-
-The composite unique index supports:
-
-```text
-Find today's attendance for an employee.
-```
-
-The date index supports:
-
-```text
-Find attendance for a specific date.
-```
-
----
-
-# 22. Why We Do Not Store Statistics
-
-Do NOT create columns such as:
-
-```text
-User.presentDays
-User.lateDays
-User.absentDays
-User.attendancePercentage
-```
-
-These values are derived from Attendance.
-
-Example:
-
-```text
-Attendance records
-       ↓
-COUNT / GROUP BY
-       ↓
-Statistics
-```
-
-This prevents stale or inconsistent data.
-
-It also gives useful PostgreSQL and Prisma query practice.
-
----
-
-# 23. Analytics Requirements
-
-The database must support calculation of:
-
-## Employee statistics
-
-- Present count
-- Late count
-- Absent count
-- Total attendance records
+- Own attendance history
+- Current-day attendance
+- Total present days
+- Total late days
 - Attendance percentage
 
-## Department statistics
+### Manager
 
-- Total employees
-- Present employees
-- Late employees
-- Absent employees
-- Department attendance percentage
+- Employees in own department
+- Department attendance history
+- Present count
+- Late count
+- Absent/missing attendance information
+- Attendance percentage
+- Employee-level attendance summaries
+- Date-range filtering
 
-## Time-based analytics
-
-- Daily attendance
-- Weekly attendance
-- Monthly attendance
-- Attendance trends
-
-These should be calculated dynamically.
+These should generally be calculated from the stored attendance records instead of storing duplicated summary values.
 
 ---
 
-# 24. PostgreSQL Query Practice
+## 12. Sample Development Data
 
-The project should intentionally provide opportunities to learn PostgreSQL through Prisma.
+The seed database should contain enough data to test relationships and visualizations.
 
-Required query concepts to practice:
-
-### Basic
-
-- SELECT
-- WHERE
-- ORDER BY
-- LIMIT
-- DISTINCT
-
-### Relations
-
-- INNER JOIN
-- LEFT JOIN
-
-### Aggregation
-
-- COUNT
-- AVG
-- GROUP BY
-- HAVING
-
-### Filtering
-
-- Date filtering
-- Range filtering
-- Multiple conditions
-
-### More advanced practice
-
-- CASE
-- COALESCE
-- Subqueries
-- CTEs
-- Window functions
-
-Not every advanced query is required for application functionality. Some can be created as separate learning exercises using the same project database.
-
----
-
-# 25. Prisma Query Practice
-
-The same database should be used to learn Prisma concepts such as:
-
-- `findUnique`
-- `findFirst`
-- `findMany`
-- `create`
-- `update`
-- `delete`
-- `where`
-- `select`
-- `include`
-- Nested relation queries
-- Aggregation
-- `_count`
-- `_avg`
-- Transactions where appropriate
-
-The goal is to understand how Prisma maps application operations to relational database concepts.
-
----
-
-# 26. Example Manager Query Concept
-
-Manager:
+Current seed structure:
 
 ```text
-manager.departmentId = IT
+Departments: 4
+Users: 24
+    Managers: 4
+    Employees: 20
+Attendance: multiple records across approximately 30 days
 ```
 
-Query concept:
-
-```text
-Get users
-WHERE departmentId = manager.departmentId
-```
-
-Then:
-
-```text
-Get attendance
-WHERE employee belongs to manager's department
-```
-
-The same requirement can later be understood in SQL as a JOIN:
-
-```text
-Attendance
-    JOIN User
-    JOIN Department
-```
-
-This is intentionally part of the learning plan.
-
----
-
-# 27. Sample Data Requirements
-
-The project should include a development seed script.
-
-Recommended dataset:
-
-### Departments
+Example departments:
 
 ```text
 IT
@@ -809,335 +342,109 @@ Finance
 Marketing
 ```
 
-### Users
-
-Approximately:
+Employee IDs:
 
 ```text
-4 managers
-20-30 employees
+EMP0001
+EMP0002
+...
+EMP0024
 ```
 
-Each department should have:
+The seed should contain a mixture of:
 
 ```text
-1 manager
-5-8 employees
+PRESENT
+LATE
 ```
 
-This creates enough relational data to test authorization and analytics.
+and missing attendance days so dashboard queries and visualizations have meaningful variation.
 
 ---
 
-# 28. Sample Attendance Requirements
+## 13. Database Design Principles
 
-Generate attendance across approximately:
-
-```text
-20-30 working days
-```
-
-for the sample employees.
-
-The dataset should contain:
-
-- Normal attendance
-- Late attendance
-- Employees with no attendance on selected dates
-- Employees who have not checked out
-- Different attendance patterns between departments
-
-This should provide enough records for meaningful dashboard charts.
+- Keep the schema normalized.
+- Avoid duplicated employee/department information in Attendance.
+- Use UUIDs for internal relationships.
+- Use `employeeId` for human-facing identification.
+- Use foreign keys to enforce relationships.
+- Use unique constraints for business rules that must never be duplicated.
+- Prefer database constraints over relying only on frontend validation.
+- Keep the initial schema small and understandable.
+- Add complexity only when a real requirement needs it.
 
 ---
 
-# 29. Seed Data Must Test Authorization
-
-Example:
+## 14. Final Schema Summary
 
 ```text
-IT Manager
-   ↓
-IT Employees
-   ↓
-IT Attendance
-
-HR Manager
-   ↓
-HR Employees
-   ↓
-HR Attendance
-```
-
-The application should prove that:
-
-```text
-IT Manager ≠ HR Attendance Access
-```
-
-while:
-
-```text
-IT Manager = IT Attendance Access
-```
-
----
-
-# 30. Edge Cases
-
-The database/application must handle:
-
-### Edge Case 1
-
-Employee checks in twice.
-
-Expected:
-
-```text
-Rejected
-```
-
-### Edge Case 2
-
-Employee checks out without checking in.
-
-Expected:
-
-```text
-Rejected
-```
-
-### Edge Case 3
-
-Employee checks out twice.
-
-Expected:
-
-```text
-Rejected
-```
-
-### Edge Case 4
-
-Employee has checked in but not checked out.
-
-Expected:
-
-```text
-checkOut = NULL
-```
-
-### Edge Case 5
-
-Inactive employee attempts login.
-
-Expected:
-
-```text
-Rejected
-```
-
-### Edge Case 6
-
-Manager requests another department's employee.
-
-Expected:
-
-```text
-Unauthorized / no access
-```
-
-### Edge Case 7
-
-Duplicate attendance is attempted concurrently.
-
-Expected:
-
-```text
-Database unique constraint prevents duplicate record.
-```
-
----
-
-# 31. Normalization
-
-The database should avoid duplicated attributes.
-
-Do NOT store:
-
-```text
-Attendance.employeeName
-Attendance.departmentName
-```
-
-Instead:
-
-```text
-Attendance
-   ↓ employeeId
-User
-   ↓ departmentId
 Department
-```
+-----------
+id PK
+name UNIQUE
+createdAt
+updatedAt
 
-This allows the database to maintain a single source of truth.
+        1
+        │
+        │
+        N
 
----
+User
+----
+id PK (UUID)
+employeeId UNIQUE
+name
+email UNIQUE
+password
+role
+departmentId FK
+isActive
+createdAt
+updatedAt
 
-# 32. Tables We Intentionally Do Not Create
+        1
+        │
+        │
+        N
 
-Do not create separate tables for:
-
-- Manager
-- Employee
-- Role
-- AttendanceStatus
-- Dashboard
-- AttendanceStatistics
-- AttendanceChart
-- PresentDays
-- LateDays
-- AbsentDays
-
-Reason:
-
-These are either represented by:
-
-- one `User` table,
-- enums,
-- relationships,
-- or dynamically calculated data.
-
----
-
-# 33. Future Extension Points
-
-The schema should remain extendable for future features such as:
-
-```text
-Leave
-Holiday
-Shift
-Branch
-AttendanceCorrection
-AuditLog
-Notification
-```
-
-These are not part of the current database.
-
-They should only be introduced when an actual requirement requires them.
-
----
-
-# 34. Final ER Structure
-
-```text
-┌─────────────────────────┐
-│       Department        │
-├─────────────────────────┤
-│ id PK                   │
-│ name UNIQUE             │
-│ createdAt               │
-│ updatedAt               │
-└────────────┬────────────┘
-             │
-             │ 1
-             │
-             │ N
-┌────────────▼────────────┐
-│          User           │
-├─────────────────────────┤
-│ id PK                   │
-│ name                    │
-│ email UNIQUE            │
-│ password                │
-│ role                    │
-│ departmentId FK         │
-│ isActive                │
-│ createdAt               │
-│ updatedAt               │
-└────────────┬────────────┘
-             │
-             │ 1
-             │
-             │ N
-┌────────────▼────────────┐
-│       Attendance        │
-├─────────────────────────┤
-│ id PK                   │
-│ employeeId FK           │
-│ date                    │
-│ checkIn                 │
-│ checkOut                │
-│ status                  │
-│ createdAt               │
-│ updatedAt               │
-└─────────────────────────┘
+Attendance
+----------
+id PK (UUID)
+employeeId FK → User.id
+date
+checkIn
+checkOut
+status
+createdAt
+updatedAt
 
 UNIQUE(employeeId, date)
 ```
 
 ---
 
-# 35. Final Design Checklist
+## 15. Prisma Mapping
 
-Before converting this design to Prisma:
-
-- [ ] Department has a primary key.
-- [ ] User has a primary key.
-- [ ] Attendance has a primary key.
-- [ ] Department → User is one-to-many.
-- [ ] User → Attendance is one-to-many.
-- [ ] User role is an enum.
-- [ ] Attendance status is an enum.
-- [ ] User email is unique.
-- [ ] User belongs to one department.
-- [ ] Attendance belongs to one user.
-- [ ] `(employeeId, date)` is unique.
-- [ ] Check-out is nullable.
-- [ ] Foreign keys enforce relationships.
-- [ ] Manager access is derived through department.
-- [ ] Statistics are calculated instead of stored.
-- [ ] Historical attendance is preserved.
-- [ ] Indexes support expected queries.
-- [ ] Sample data supports visualization.
-- [ ] Sample data supports authorization testing.
-- [ ] Schema is simple enough to understand.
-- [ ] Schema provides useful PostgreSQL/Prisma practice.
-
----
-
-# 36. Implementation Flow
+The database is represented in Prisma using:
 
 ```text
-SRS.md
-   ↓
-DB-requirement.md
-   ↓
-ER Design
-   ↓
-dbdiagram.io
-   ↓
-Review Relationships
-   ↓
-Prisma Schema
-   ↓
-PostgreSQL Migration
-   ↓
-Seed Sample Data
-   ↓
-Test Constraints
-   ↓
-Build Prisma Queries
-   ↓
-Build Authentication
-   ↓
-Build Authorization
-   ↓
-Build Dashboards
-   ↓
-Build Analytics
+Department
+User
+Attendance
+
+UserRole
+AttendanceStatus
 ```
 
-The ER diagram must be reviewed before creating the Prisma schema.
+Prisma relations:
+
+```text
+Department.users
+User.department
+User.attendance
+Attendance.employee
+```
+
+The Prisma schema is the application-level representation of this database design.
