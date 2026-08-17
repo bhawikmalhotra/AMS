@@ -1,14 +1,25 @@
 "use server";
 
 import { signIn } from "@/auth";
+import { AuthError } from "next-auth";
 
 export async function login(formData) {
-  const email = formData.get("email");
-  const password = formData.get("password");
+  try {
+    await signIn("credentials", {
+      email: formData.get("email"),
+      password: formData.get("password"),
+      redirectTo: "/dashboard",
+    });
 
-  await signIn("credentials", {
-    email,
-    password,
-    redirectTo: "/dashboard",
-  });
+    return { success: true };
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return {
+        success: false,
+        error: "Invalid email or password",
+      };
+    }
+
+    throw error;
+  }
 }
