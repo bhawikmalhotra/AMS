@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import bcrypt from "bcryptjs";
 
 /**
  * Helper to verify Admin authorization server-side
@@ -13,6 +14,53 @@ async function verifyAdminSession() {
     throw new Error("Unauthorized. Only Admins can perform this action.");
   }
   return session;
+}
+
+export async function createUserAction(formData) {
+  try {
+    await verifyAdminSession();
+
+    const { name, email, employeeId, password, role, departmentId } = formData;
+
+    if (!name || !email || !employeeId || !password || !role) {
+      return { success: false, error: "Please fill in all required fields." };
+    }
+
+    // Check unique constraints
+    const existingEmail = await prisma.user.findUnique({ where: { email } });
+    if (existingEmail) {
+      return { success: false, error: "An account with this email already exists." };
+    }
+
+    const existingEmpId = await prisma.user.findUnique({ where: { employeeId } });
+    if (existingEmpId) {
+      return { success: false, error: "An account with this Employee ID already exists." };
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Business rule: ADMINs have departmentId = null
+    const finalDepartmentId = role === "ADMIN" ? null : departmentId || null;
+
+    await prisma.user.create({
+      data: {
+        name,
+        email,
+        employeeId,
+        password: hashedPassword,
+        role,
+        departmentId: finalDepartmentId,
+        isActive: true,
+      },
+    });
+
+    revalidatePath("/dashboard/admin");
+    return { success: true };
+  } catch (error) {
+    console.error("Create user error:", error);
+    return { success: false, error: error.message || "Failed to create user account." };
+  }
 }
 
 export async function updateUserRoleAction(userId, newRole) {

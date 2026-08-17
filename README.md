@@ -4,6 +4,18 @@ A modern, beginner-friendly **Employee Attendance Management Web Application** b
 
 ---
 
+## 🔑 Demo Login Credentials
+
+Use these credentials to test the different roles:
+
+| Role | Email | Password | Access Scope |
+|---|---|---|---|
+| **EMPLOYEE** | `arjun.mehta@company.com` | `Password@123` | Personal Attendance & Today's Check-In/Out |
+| **MANAGER** | `rahul.manager@company.com` | `Password@123` | Assigned Department Attendance & Employee List |
+| **ADMIN** | `admin@company.com` | `Admin@123` | Organization-Wide Access & Account Creation |
+
+---
+
 ## ✨ Features by Role
 
 ### 👤 1. Employee Dashboard (`/dashboard/employee`)
@@ -18,8 +30,9 @@ A modern, beginner-friendly **Employee Attendance Management Web Application** b
 - **Interactive Directory**: Search team members by name, email, or employee ID, and filter by attendance status (`Present`, `Late`, `Not Checked In`).
 
 ### 👑 3. Admin Dashboard (`/dashboard/admin`)
+- **+ Add New Employee Account**: Create new user accounts directly with custom name, email, employee ID, role, and department assignment.
 - **Company-Wide Overview**: View organization-wide attendance metrics and department counts.
-- **User Directory Management**: Filter and view all registered system users.
+- **User Directory Management**: Filter and search all registered system users.
 - **Role Assignment**: Instantly update user roles (`EMPLOYEE`, `MANAGER`, `ADMIN`).
 - **Department Transfer**: Reassign employees to different departments.
 - **Account Control**: Activate or deactivate user accounts (prevents unauthorized logins while preserving historical attendance data).
@@ -78,8 +91,8 @@ src/
 ├── app/
 │   ├── api/auth/         # Auth.js API route
 │   ├── dashboard/        # Dashboard layout & route pages
-│   │   ├── admin/        # Admin page & Server Actions
-│   │   ├── employee/     # Employee page & Server Actions
+│   │   ├── admin/        # Admin page & Server Actions (createUser, updateUserRole, etc.)
+│   │   ├── employee/     # Employee page & Server Actions (checkIn, checkOut)
 │   │   ├── manager/      # Manager page
 │   │   └── components/   # Dashboard UI components
 │   └── login/            # Login page

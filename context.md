@@ -29,7 +29,7 @@
 3. **ADMIN**:
    - Access: `/dashboard/admin`
    - Data Scope: Company-wide access across all departments and all users.
-   - Database Rule: Does not belong to a department (`departmentId = null`). Can assign roles, transfer departments, and activate/deactivate accounts.
+   - Database Rule: Does not belong to a department (`departmentId = null`). Can create accounts, assign roles, transfer departments, and activate/deactivate accounts.
 
 ---
 
@@ -49,8 +49,7 @@
 - **What it does**:
   - Card on Employee Dashboard showing today's attendance status (`Not Checked In`, `Checked In`, `Checked In (Late)`, `Completed for Today`).
   - Displays Check-In & Check-Out timestamps.
-  - Contains **Check In Now** and **Check Out Now** buttons.
-  - Uses React `useTransition` to handle button loading states smoothly.
+  - Contains **Check In Now** and **Check Out Now** buttons with React `useTransition`.
 
 ### 3. `EmployeeStatsCards.jsx`
 - **Location**: `src/app/dashboard/components/EmployeeStatsCards.jsx`
@@ -89,6 +88,7 @@
 - **Type**: Client Component (`"use client"`)
 - **What it does**:
   - Complete user directory for Admins.
+  - **"+ Add New User" form**: Form to register new accounts (Name, Email, Employee ID, Password, Role, Department).
   - Search and filter by Role, Department, or Account Status.
   - Interactive dropdowns to **change user roles** or **reassign departments**.
   - **Activate / Deactivate** account action buttons.
@@ -110,6 +110,12 @@
   - Revalidates path `/dashboard/employee`.
 
 ### 2. Admin Management Actions (`src/app/dashboard/admin/adminActions.js`)
+- **`createUserAction(formData)`**:
+  - Verifies Admin session via `auth()`.
+  - Checks for unique email and employee ID constraints.
+  - Hashes password using `bcrypt.hash(password, 10)`.
+  - Creates new User record in PostgreSQL via Prisma.
+  - Revalidates path `/dashboard/admin`.
 - **`updateUserRoleAction(userId, newRole)`**:
   - Verifies Admin session.
   - Updates user role in database. If assigned `ADMIN`, automatically sets `departmentId = null`.

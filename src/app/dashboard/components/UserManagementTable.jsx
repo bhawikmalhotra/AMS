@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
+  createUserAction,
   updateUserRoleAction,
   updateUserDepartmentAction,
   toggleUserStatusAction,
@@ -16,9 +17,50 @@ export default function UserManagementTable({ users = [], departments = [] }) {
   const [deptFilter, setDeptFilter] = useState("ALL");
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+
+  // Create User Form State
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    employeeId: "",
+    password: "",
+    role: "EMPLOYEE",
+    departmentId: "",
+  });
+
+  const handleInputChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleCreateUser = (e) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    startTransition(async () => {
+      const res = await createUserAction(formData);
+      if (res.success) {
+        setSuccessMsg(`Successfully created account for ${formData.name}!`);
+        setFormData({
+          name: "",
+          email: "",
+          employeeId: "",
+          password: "",
+          role: "EMPLOYEE",
+          departmentId: "",
+        });
+        setShowAddForm(false);
+      } else {
+        setErrorMsg(res.error);
+      }
+    });
+  };
 
   const handleRoleChange = (userId, newRole) => {
     setErrorMsg("");
+    setSuccessMsg("");
     startTransition(async () => {
       const res = await updateUserRoleAction(userId, newRole);
       if (!res.success) setErrorMsg(res.error);
@@ -27,6 +69,7 @@ export default function UserManagementTable({ users = [], departments = [] }) {
 
   const handleDepartmentChange = (userId, newDeptId) => {
     setErrorMsg("");
+    setSuccessMsg("");
     startTransition(async () => {
       const res = await updateUserDepartmentAction(userId, newDeptId);
       if (!res.success) setErrorMsg(res.error);
@@ -35,6 +78,7 @@ export default function UserManagementTable({ users = [], departments = [] }) {
 
   const handleToggleStatus = (userId, currentStatus) => {
     setErrorMsg("");
+    setSuccessMsg("");
     startTransition(async () => {
       const res = await toggleUserStatusAction(userId, !currentStatus);
       if (!res.success) setErrorMsg(res.error);
@@ -67,19 +111,32 @@ export default function UserManagementTable({ users = [], departments = [] }) {
             </CardDescription>
           </div>
 
-          {/* Search and Filters */}
           <div className="flex flex-wrap items-center gap-2">
+            {/* Add User Button */}
+            <Button
+              onClick={() => {
+                setShowAddForm(!showAddForm);
+                setErrorMsg("");
+                setSuccessMsg("");
+              }}
+              size="sm"
+              className="bg-primary text-primary-foreground font-medium"
+            >
+              {showAddForm ? "Cancel" : "+ Add New User"}
+            </Button>
+
+            {/* Search and Filters */}
             <Input
               placeholder="Search user..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-48 text-sm"
+              className="w-full sm:w-40 text-sm"
             />
 
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none"
             >
               <option value="ALL">All Roles</option>
               <option value="EMPLOYEE">Employee</option>
@@ -90,7 +147,7 @@ export default function UserManagementTable({ users = [], departments = [] }) {
             <select
               value={deptFilter}
               onChange={(e) => setDeptFilter(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none"
             >
               <option value="ALL">All Depts</option>
               {departments.map((d) => (
@@ -105,12 +162,139 @@ export default function UserManagementTable({ users = [], departments = [] }) {
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {/* Messages */}
         {errorMsg && (
           <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive font-medium">
             {errorMsg}
           </div>
         )}
+        {successMsg && (
+          <div className="rounded-md bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 p-3 text-sm font-medium border border-emerald-200">
+            {successMsg}
+          </div>
+        )}
 
+        {/* Add User Form Section */}
+        {showAddForm && (
+          <form
+            onSubmit={handleCreateUser}
+            className="rounded-lg border bg-muted/40 p-4 space-y-4 transition-all"
+          >
+            <h4 className="font-semibold text-sm">Create New User Account</h4>
+
+            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">
+                  Full Name *
+                </label>
+                <Input
+                  required
+                  name="name"
+                  placeholder="e.g. John Doe"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className="text-sm bg-background"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">
+                  Email Address *
+                </label>
+                <Input
+                  required
+                  type="email"
+                  name="email"
+                  placeholder="john@company.com"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="text-sm bg-background"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">
+                  Employee ID *
+                </label>
+                <Input
+                  required
+                  name="employeeId"
+                  placeholder="e.g. EMP0005"
+                  value={formData.employeeId}
+                  onChange={handleInputChange}
+                  className="text-sm bg-background"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">
+                  Password *
+                </label>
+                <Input
+                  required
+                  type="password"
+                  name="password"
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className="text-sm bg-background"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">
+                  Role *
+                </label>
+                <select
+                  name="role"
+                  value={formData.role}
+                  onChange={handleInputChange}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none"
+                >
+                  <option value="EMPLOYEE">EMPLOYEE</option>
+                  <option value="MANAGER">MANAGER</option>
+                  <option value="ADMIN">ADMIN</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">
+                  Department {formData.role === "ADMIN" ? "(N/A for Admin)" : "*"}
+                </label>
+                <select
+                  disabled={formData.role === "ADMIN"}
+                  name="departmentId"
+                  value={formData.departmentId}
+                  onChange={handleInputChange}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none disabled:opacity-50"
+                >
+                  <option value="">Select Department</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAddForm(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" disabled={isPending}>
+                {isPending ? "Creating..." : "Save Account"}
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {/* User List Table */}
         {filteredUsers.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground text-sm">
             No users match the selected filters.

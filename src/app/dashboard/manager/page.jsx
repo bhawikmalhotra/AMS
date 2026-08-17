@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma";
 import ManagerStatsCards from "../components/ManagerStatsCards";
 import DepartmentAttendanceTable from "../components/DepartmentAttendanceTable";
 
+export const metadata = {
+  title: "Manager Dashboard",
+  description: "Monitor department employee attendance and daily statistics at VYNS Global.",
+};
+
 function getTodayDate() {
   const now = new Date();
   return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));

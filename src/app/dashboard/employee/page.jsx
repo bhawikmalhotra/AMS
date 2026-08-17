@@ -4,6 +4,11 @@ import TodayStatusCard from "../components/TodayStatusCard";
 import EmployeeStatsCards from "../components/EmployeeStatsCards";
 import AttendanceHistoryTable from "../components/AttendanceHistoryTable";
 
+export const metadata = {
+  title: "Employee Dashboard",
+  description: "View and record your daily attendance at VYNS Global.",
+};
+
 function getTodayDate() {
   const now = new Date();
   return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
