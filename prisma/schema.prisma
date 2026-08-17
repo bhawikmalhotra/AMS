@@ -16,19 +16,18 @@ model Department {
 }
 
 model User {
-  id           String           @id @default(uuid())
-  employeeId   String            @unique
+  id           String       @id @default(uuid())
   name         String
-  email        String           @unique
+  email        String       @unique
   password     String
-  role         UserRole         @default(EMPLOYEE)
-  departmentId String
-  isActive     Boolean          @default(true)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-
-  department Department   @relation(fields: [departmentId], references: [id])
-  attendance Attendance[]
+  role         UserRole     @default(EMPLOYEE)
+  departmentId String?
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  employeeId   String       @unique
+  attendance   Attendance[]
+  department   Department?  @relation(fields: [departmentId], references: [id])
 }
 
 model Attendance {
@@ -48,6 +47,7 @@ model Attendance {
 enum UserRole {
   EMPLOYEE
   MANAGER
+  ADMIN
 }
 
 enum AttendanceStatus {

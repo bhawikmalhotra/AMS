@@ -3,6 +3,7 @@ import { auth } from "./auth";
 const roleDashboards = {
   EMPLOYEE: "/dashboard/employee",
   MANAGER: "/dashboard/manager",
+  ADMIN: "/dashboard/admin",
 };
 
 export default auth((req) => {

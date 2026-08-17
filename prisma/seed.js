@@ -5,6 +5,9 @@ import bcrypt from "bcryptjs";
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
 
 const prisma = new PrismaClient({
@@ -19,10 +22,26 @@ const departments = [
 ];
 
 const managerData = [
-  { employeeId: "EMP0001", name: "Rahul Sharma", email: "rahul.manager@company.com" },
-  { employeeId: "EMP0007", name: "Priya Verma", email: "priya.manager@company.com" },
-  { employeeId: "EMP0013", name: "Amit Singh", email: "amit.manager@company.com" },
-  { employeeId: "EMP0019", name: "Neha Kapoor", email: "neha.manager@company.com" },
+  {
+    employeeId: "EMP0001",
+    name: "Rahul Sharma",
+    email: "rahul.manager@company.com",
+  },
+  {
+    employeeId: "EMP0007",
+    name: "Priya Verma",
+    email: "priya.manager@company.com",
+  },
+  {
+    employeeId: "EMP0013",
+    name: "Amit Singh",
+    email: "amit.manager@company.com",
+  },
+  {
+    employeeId: "EMP0019",
+    name: "Neha Kapoor",
+    email: "neha.manager@company.com",
+  },
 ];
 
 const employeeNames = [
@@ -36,8 +55,12 @@ async function main() {
   console.log("🌱 Starting database seed...");
 
   const passwordHash = await bcrypt.hash("Password@123", 10);
+  const adminPasswordHash = await bcrypt.hash("Admin@123", 10);
 
+  // --------------------------------------------------
   // 1. Create departments
+  // --------------------------------------------------
+
   const createdDepartments = [];
 
   for (const department of departments) {
@@ -54,50 +77,102 @@ async function main() {
 
   console.log("✅ Departments created");
 
-  // 2. Create managers and employees
+  // --------------------------------------------------
+  // 2. Create ADMIN
+  // --------------------------------------------------
+
+  await prisma.user.upsert({
+    where: {
+      email: "admin@company.com",
+    },
+    update: {
+      name: "System Admin",
+      employeeId: "ADM0001",
+      password: adminPasswordHash,
+      role: "ADMIN",
+      departmentId: null,
+      isActive: true,
+    },
+    create: {
+      name: "System Admin",
+      employeeId: "ADM0001",
+      email: "admin@company.com",
+      password: adminPasswordHash,
+      role: "ADMIN",
+      departmentId: null,
+      isActive: true,
+    },
+  });
+
+  console.log("✅ Admin created");
+
+  // --------------------------------------------------
+  // 3. Create managers and employees
+  // --------------------------------------------------
+
   const users = [];
 
   for (let i = 0; i < createdDepartments.length; i++) {
     const department = createdDepartments[i];
 
+    // Manager
     const manager = await prisma.user.upsert({
       where: {
         email: managerData[i].email,
       },
       update: {
+        employeeId: managerData[i].employeeId,
         departmentId: department.id,
         role: "MANAGER",
         isActive: true,
       },
       create: {
+        employeeId: managerData[i].employeeId,
         name: managerData[i].name,
         email: managerData[i].email,
         password: passwordHash,
         role: "MANAGER",
         departmentId: department.id,
+        isActive: true,
       },
     });
 
     users.push(manager);
 
-    for (const name of employeeNames[i]) {
-      const email = `${name.toLowerCase().replaceAll(" ", ".")}@company.com`;
+    // Employees
+    for (let j = 0; j < employeeNames[i].length; j++) {
+      const name = employeeNames[i][j];
+
+      const email = `${name
+        .toLowerCase()
+        .replaceAll(" ", ".")}@company.com`;
+
+      // Existing employee ID pattern:
+      // IT:       EMP0002 - EMP0006
+      // HR:       EMP0008 - EMP0012
+      // Finance:  EMP0014 - EMP0018
+      // Marketing:EMP0020 - EMP0024
+
+      const employeeId = `EMP${String(i * 6 + j + 2).padStart(4, "0")}`;
 
       const employee = await prisma.user.upsert({
         where: {
           email,
         },
         update: {
+          employeeId,
           departmentId: department.id,
           role: "EMPLOYEE",
           isActive: true,
         },
         create: {
+          employeeId,
           name,
           email,
           password: passwordHash,
           role: "EMPLOYEE",
           departmentId: department.id,
+          isActive: true,
         },
       });
 
@@ -105,24 +180,31 @@ async function main() {
     }
   }
 
-  console.log(`✅ ${users.length} users created`);
+  console.log(`✅ ${users.length} managers/employees created`);
 
-  // 3. Create attendance data
-  const employees = users.filter((user) => user.role === "EMPLOYEE");
+  // --------------------------------------------------
+  // 4. Create attendance data
+  // --------------------------------------------------
+
+  const employees = users.filter(
+    (user) => user.role === "EMPLOYEE"
+  );
 
   const today = new Date();
 
   for (const employee of employees) {
     for (let daysAgo = 1; daysAgo <= 30; daysAgo++) {
       const date = new Date(today);
+
       date.setDate(date.getDate() - daysAgo);
 
-      // Skip some days to create realistic missing-attendance data.
+      // Skip some days to create realistic missing attendance.
       if ((employee.id.charCodeAt(0) + daysAgo) % 11 === 0) {
         continue;
       }
 
       const attendanceDate = new Date(date);
+
       attendanceDate.setHours(0, 0, 0, 0);
 
       const isLate =
