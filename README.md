@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# 📋 Employee Attendance Management System (AMS)
 
-## Getting Started
+A modern, beginner-friendly **Employee Attendance Management Web Application** built with **Next.js 16 (App Router)**, **Prisma 7**, **PostgreSQL**, and **Auth.js**.
 
-First, run the development server:
+---
 
+## ✨ Features by Role
+
+### 👤 1. Employee Dashboard (`/dashboard/employee`)
+- **Daily Check-In & Check-Out**: Record daily attendance with a single click.
+- **Smart Punctuality**: Automatically marks status as `PRESENT` or `LATE` (if checked in after 9:00 AM).
+- **Personal Statistics**: Total present days, late days, and attendance rate percentage.
+- **Attendance History**: View past check-in/out records with shift durations (shows latest 5 by default with "Show More" expansion).
+
+### 👔 2. Manager Dashboard (`/dashboard/manager`)
+- **Department Scoping**: Managers can strictly access only employees within their assigned department.
+- **Department Metrics**: Total team members, present count, late count, and department attendance rate.
+- **Interactive Directory**: Search team members by name, email, or employee ID, and filter by attendance status (`Present`, `Late`, `Not Checked In`).
+
+### 👑 3. Admin Dashboard (`/dashboard/admin`)
+- **Company-Wide Overview**: View organization-wide attendance metrics and department counts.
+- **User Directory Management**: Filter and view all registered system users.
+- **Role Assignment**: Instantly update user roles (`EMPLOYEE`, `MANAGER`, `ADMIN`).
+- **Department Transfer**: Reassign employees to different departments.
+- **Account Control**: Activate or deactivate user accounts (prevents unauthorized logins while preserving historical attendance data).
+
+---
+
+## 🛠️ Tech Stack
+
+- **Framework**: Next.js 16 (App Router) + React
+- **Styling**: Tailwind CSS + shadcn/ui
+- **Database**: PostgreSQL 18
+- **ORM**: Prisma 7
+- **Authentication**: Auth.js (NextAuth v5 beta) with bcrypt password hashing
+- **Security**: Next.js Middleware Proxy (`src/proxy.js`) + Server-side `auth()` authorization
+
+---
+
+## 🚀 Getting Started
+
+### 1. Clone & Install Dependencies
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/bhawikmalhotra/AMS.git
+cd attendance-management
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Configure Environment Variables
+Create a `.env` file in the root directory:
+```env
+DATABASE_URL="postgresql://username:password@localhost:5432/attendance_db"
+AUTH_SECRET="your_nextauth_secret_key"
+```
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+### 3. Setup Database & Prisma
+```bash
+# Push schema to database
+npx prisma db push
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Generate Prisma Client
+npx prisma generate
+```
 
-## Learn More
+### 4. Run Development Server
+```bash
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Open [http://localhost:3000](http://localhost:3000) in your browser to view the app!
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 📁 Project Structure
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```text
+src/
+├── app/
+│   ├── api/auth/         # Auth.js API route
+│   ├── dashboard/        # Dashboard layout & route pages
+│   │   ├── admin/        # Admin page & Server Actions
+│   │   ├── employee/     # Employee page & Server Actions
+│   │   ├── manager/      # Manager page
+│   │   └── components/   # Dashboard UI components
+│   └── login/            # Login page
+├── components/ui/        # Reusable shadcn UI components
+├── lib/                  # Prisma client & utility helpers
+└── proxy.js              # Next.js route protection proxy
+```

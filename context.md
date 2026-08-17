@@ -1,290 +1,134 @@
-# Antigravity Context — Employee Attendance Management System
+# Project Context & Architecture Guide — Employee Attendance Management System
 
-## HOW TO WORK
+> **Purpose**: This document explains what we built, how the UI is structured, and where Server Actions live in simple language for learning purposes.
 
-This is a **learning project**.
+---
 
-Do NOT generate the entire app in one prompt.
+## 🛠️ Stack & Architecture
 
-Work:
-```text
-Explain → Implement small part → Test → Explain → Continue
-```
+- **Framework**: Next.js 16 (App Router) + React
+- **Styling**: Tailwind CSS + shadcn/ui components
+- **Database & ORM**: PostgreSQL + Prisma 7
+- **Authentication**: Auth.js (NextAuth v5 beta) with bcrypt password hashing
+- **Security & Authorization**: Next.js `src/proxy.js` route middleware + Server-side `auth()` checks in Server Components & Server Actions
 
-Rules:
-- Work ONE feature at a time.
-- Explain important code before writing it.
-- Do not make unrelated changes.
-- Do not replace working code unnecessarily.
-- Use production-grade practices but keep code beginner-friendly.
-- Use shadcn/ui.
-- Preserve existing Prisma/Auth.js architecture.
-- Ask before any new database/schema change.
-- Let me test each feature before moving on.
+---
 
-## STACK
+## 👥 User Roles & Data Rules
 
-- Next.js 16.3
-- React
-- JavaScript
-- Tailwind CSS
-- shadcn/ui
-- Prisma 7
-- PostgreSQL 18
-- Auth.js / NextAuth v5 beta
-- bcryptjs
-- React Hook Form
-- Zod
+1. **EMPLOYEE**:
+   - Access: `/dashboard/employee`
+   - Data Scope: Can view only their own attendance history and check in/out for today.
+   - Database Rule: Must belong to a `Department`.
 
-## DATABASE — COMPLETE
+2. **MANAGER**:
+   - Access: `/dashboard/manager`
+   - Data Scope: Can view employees and attendance **only within their own assigned department**.
+   - Database Rule: Must belong to a `Department`.
 
-```text
-Department 1 ─────< User 1 ─────< Attendance
-```
+3. **ADMIN**:
+   - Access: `/dashboard/admin`
+   - Data Scope: Company-wide access across all departments and all users.
+   - Database Rule: Does not belong to a department (`departmentId = null`). Can assign roles, transfer departments, and activate/deactivate accounts.
 
-User roles:
+---
 
-```text
-EMPLOYEE
-MANAGER
-ADMIN
-```
+## 🎨 UI Components Breakdown (`src/app/dashboard/components/`)
 
-Important User fields:
-```text
-id: UUID
-employeeId: unique human-friendly ID
-name
-email
-password: hashed
-role
-departmentId: nullable
-isActive
-```
+### 1. `DashboardNavbar.jsx`
+- **Location**: `src/app/dashboard/components/DashboardNavbar.jsx`
+- **Type**: Server Component (fetches `auth()` session)
+- **What it does**:
+  - Sticky top header for the entire dashboard.
+  - Displays user's name, email, employee ID (`EMP0001`), and role badge (`EMPLOYEE`, `MANAGER • Engineering`, `ADMIN`).
+  - Contains the **Logout** button.
 
-Department rule:
-```text
-EMPLOYEE → department required
-MANAGER  → department required
-ADMIN    → departmentId = NULL
-```
+### 2. `TodayStatusCard.jsx`
+- **Location**: `src/app/dashboard/components/TodayStatusCard.jsx`
+- **Type**: Client Component (`"use client"`)
+- **What it does**:
+  - Card on Employee Dashboard showing today's attendance status (`Not Checked In`, `Checked In`, `Checked In (Late)`, `Completed for Today`).
+  - Displays Check-In & Check-Out timestamps.
+  - Contains **Check In Now** and **Check Out Now** buttons.
+  - Uses React `useTransition` to handle button loading states smoothly.
 
-Attendance:
-```text
-employeeId
-date
-checkIn
-checkOut
-status
-```
+### 3. `EmployeeStatsCards.jsx`
+- **Location**: `src/app/dashboard/components/EmployeeStatsCards.jsx`
+- **Type**: Server Component
+- **What it does**:
+  - Displays 4 metric cards for the logged-in employee: **Present Days**, **Late Days**, **Total Days**, and **Attendance Rate (%)**.
 
-Unique:
-```text
-(employeeId, date)
-```
+### 4. `AttendanceHistoryTable.jsx`
+- **Location**: `src/app/dashboard/components/AttendanceHistoryTable.jsx`
+- **Type**: Client Component (`"use client"`)
+- **What it does**:
+  - Displays the employee's personal attendance history table (Date, Check In, Check Out, Shift Duration, Status Badge).
+  - Shows the **latest 5 records** by default with a **"Show More / Show Less"** toggle button.
 
-Database is seeded and working.
+### 5. `ManagerStatsCards.jsx`
+- **Location**: `src/app/dashboard/components/ManagerStatsCards.jsx`
+- **Type**: Server Component
+- **What it does**:
+  - Metric cards for the Manager Dashboard: **Department Team Count**, **Present Today**, **Late Today**, and **Turnout Rate (%)**.
 
-## AUTH — COMPLETE
+### 6. `DepartmentAttendanceTable.jsx`
+- **Location**: `src/app/dashboard/components/DepartmentAttendanceTable.jsx`
+- **Type**: Client Component (`"use client"`)
+- **What it does**:
+  - Displays all employees belonging to the manager's department.
+  - Includes a real-time **Search bar** (search by name, email, employee ID) and a **Status Filter dropdown** (`All`, `Present`, `Late`, `Not Checked In`).
 
-Auth.js Credentials authentication is working.
+### 7. `AdminStatsCards.jsx`
+- **Location**: `src/app/dashboard/components/AdminStatsCards.jsx`
+- **Type**: Server Component
+- **What it does**:
+  - Organization-wide metric cards: **Total System Users**, **Total Departments**, **Company Present Today**, and **Company Turnout Rate (%)**.
 
-Session contains:
-```text
-id
-employeeId
-name
-email
-role
-departmentId
-```
+### 8. `UserManagementTable.jsx`
+- **Location**: `src/app/dashboard/components/UserManagementTable.jsx`
+- **Type**: Client Component (`"use client"`)
+- **What it does**:
+  - Complete user directory for Admins.
+  - Search and filter by Role, Department, or Account Status.
+  - Interactive dropdowns to **change user roles** or **reassign departments**.
+  - **Activate / Deactivate** account action buttons.
 
-Auth route:
-```text
-src/app/api/auth/[...nextauth]/route.js
-```
+---
 
-Login uses:
-```text
-React Hook Form
-Server Action
-Auth.js
-bcrypt
-```
+## ⚡ Server Actions Breakdown
 
-Wrong credentials show:
-```text
-Invalid email or password
-```
+### 1. Employee Attendance Actions (`src/app/dashboard/employee/actions.js`)
+- **`checkInAction()`**:
+  - Checks if user is authenticated with `auth()`.
+  - Normalizes today's date to UTC midnight matching `@db.Date`.
+  - Checks for 9:00 AM cutoff (`PRESENT` vs `LATE`).
+  - Creates an `Attendance` record in PostgreSQL via Prisma.
+  - Revalidates path `/dashboard/employee`.
+- **`checkOutAction()`**:
+  - Checks if user is authenticated with `auth()`.
+  - Updates `checkOut` timestamp on today's attendance record.
+  - Revalidates path `/dashboard/employee`.
 
-## PROXY / RBAC — COMPLETE
+### 2. Admin Management Actions (`src/app/dashboard/admin/adminActions.js`)
+- **`updateUserRoleAction(userId, newRole)`**:
+  - Verifies Admin session.
+  - Updates user role in database. If assigned `ADMIN`, automatically sets `departmentId = null`.
+  - Revalidates path `/dashboard/admin`.
+- **`updateUserDepartmentAction(userId, newDepartmentId)`**:
+  - Verifies Admin session.
+  - Reassigns user to a new department.
+  - Revalidates path `/dashboard/admin`.
+- **`toggleUserStatusAction(userId, newStatus)`**:
+  - Verifies Admin session.
+  - Toggles `isActive` boolean (enabling or disabling account login without deleting history).
+  - Revalidates path `/dashboard/admin`.
 
-Next.js 16 uses:
-```text
-src/proxy.js
-```
+---
 
-Current role mapping:
-```text
-EMPLOYEE → /dashboard/employee
-MANAGER  → /dashboard/manager
-ADMIN    → /dashboard/admin
-```
+## 📄 Pages & Routes Summary
 
-RBAC is already implemented simply.
-
-Do not rebuild authentication/RBAC unless a feature requires a change.
-
-## DASHBOARD — CURRENT
-
-```text
-src/app/dashboard/
-├── components/
-│   └── DashboardNavbar.jsx
-├── layout.js
-├── page.js
-├── employee/
-│   └── page.js
-├── manager/
-│   └── page.js
-└── admin/
-    └── page.js
-```
-
-Shared `dashboard/layout.js` contains the dashboard shell/navbar.
-
-Navbar is a Server Component:
-- gets session with `auth()`
-- shows name
-- shows employeeId
-- shows role
-- gets department name from Prisma when departmentId exists
-- logout button
-
-Admin has no department and should not show a fake department.
-
-A simple ADMIN page and RBAC are already built.
-
-## ADMIN REQUIREMENT
-
-ADMIN is company-wide.
-
-Admin can:
-- View all users
-- Search/filter users
-- Change employee department
-- Change employee role
-- Activate/deactivate users
-- View all departments
-- View all attendance
-- Filter attendance
-- View organization statistics
-
-Admin is not attached to a department.
-
-Admin seed user exists.
-
-Do not make further schema changes unless a real feature requires one.
-
-## AUTHORIZATION PRINCIPLE
-
-```text
-Auth.js
- ↓
-Session
- ↓
-Proxy: route protection
- ↓
-Server-side auth()
- ↓
-Prisma: data authorization
-```
-
-Never trust client-provided role, user ID, or department ID.
-
-Manager queries must derive department scope from the authenticated session.
-
-Admin queries can access company-wide data.
-
-## UI
-
-Use shadcn/ui.
-
-Keep UI professional but understandable.
-
-Useful components:
-```text
-Button
-Card
-Input
-Label
-Badge
-Table
-Dialog
-Select
-Dropdown Menu
-Sidebar
-Tabs
-Calendar
-Alert
-Sheet
-```
-
-Do not add unnecessary abstractions.
-
-## REMAINING WORK
-
-```text
-Employee dashboard UI
-Employee attendance actions
-Employee attendance history
-Manager employee list
-Manager attendance
-Manager statistics
-Admin dashboard improvements
-Admin user management
-Admin department/role changes
-Admin attendance
-Charts
-Loading/error/empty states
-Responsive polish
-Security/authorization testing
-Final testing
-Deployment
-```
-
-## DEVELOPMENT ORDER
-
-Do one feature at a time:
-
-```text
-1. Employee dashboard UI
-2. Employee attendance actions
-3. Employee attendance history
-4. Manager employee list
-5. Manager attendance
-6. Manager statistics
-7. Admin dashboard
-8. Admin user management
-9. Admin department/role changes
-10. Admin attendance
-11. Charts
-12. Loading/error/empty states
-13. Authorization/security testing
-14. Final UI polish
-15. Deployment
-```
-
-## IMPORTANT
-
-The developer wants to **learn while building**.
-
-Do not hide logic behind giant generated abstractions.
-
-Explain:
-- what the code does
-- why it is needed
-- why it belongs in that file
-- what security rule it enforces
-
-Then implement only that part and stop for testing.
+- **`/login`**: Credentials login form.
+- **`/dashboard`**: Auto-redirects to appropriate role path via [`src/proxy.js`](file:///d:/Shared/VYNS/attendance-management/src/proxy.js).
+- **`/dashboard/employee`**: Employee Dashboard page.
+- **`/dashboard/manager`**: Manager Dashboard page (scoped strictly to `user.departmentId`).
+- **`/dashboard/admin`**: Admin Dashboard page (company-wide access).
